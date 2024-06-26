@@ -1,10 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-// const authRoutes = require("./routes/authRoutes");
+const cors = require("cors");
+const authRoutes = require("./routes/authRoutes.js");
 const taskRoutes = require("./routes/taskRoutes");
 const userRoutes = require("./routes/userRoutes");
-const dashboardRoutes = require("./routes/dashboardRoutes"); // Add this line
+const dashboardRoutes = require("./routes/dashboardRoutes");
 require("dotenv").config();
 const app = express();
 
@@ -16,8 +17,8 @@ mongoose.connect(mongoURI, {
 });
 
 app.use(bodyParser.json());
-
-// app.use("/api/auth", authRoutes);
+app.use(cors());
+app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/dashboard", dashboardRoutes); // Add this line

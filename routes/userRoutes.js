@@ -3,7 +3,8 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const auth = require('../middleware/auth');
 const role = require('../middleware/role');
-
+router.get('/profile', auth, userController.getUserProfile);
+router.put('/profile', auth, userController.updateUserProfile);
 router.get('/', auth, role(['Admin', 'TeamLeader']), userController.getUsers);
 router.get('/:id', auth, role(['Admin', 'TeamLeader']), userController.getUser);
 router.post('/', auth, role(['Admin']), userController.createUser);
