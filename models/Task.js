@@ -27,6 +27,24 @@ const taskSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  closedAt: { type: Date, default: null },
+  statusChanges: [
+    {
+      status: {
+        type: String,
+        enum: ["Open", "In Progress", "Completed"],
+        required: true,
+      },
+      reason: { type: String, required: true },
+      changesAttachments: [
+        {
+          type: { type: String, enum: ["application", "image", "pdf"] },
+          path: { type: String },
+        },
+      ],
+      changedAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 taskSchema.pre("save", function (next) {

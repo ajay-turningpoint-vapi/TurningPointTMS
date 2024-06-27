@@ -103,6 +103,48 @@ exports.updateTask = async (req, res) => {
   }
 };
 
+exports.updateTaskStatus = async (req, res) => {
+  const { id } = req.params;
+  const { newStatus, reason, changesAttachments } = req.body;
+
+  if (!newStatus || !reason) {
+    return res
+      .status(400)
+      .json({ message: "New status and reason are required" });
+  }
+
+  try {
+    const task = await Task.findById(id);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    task.status = newStatus;
+    task.statusChanges.push({
+      status: newStatus,
+      reason: reason,
+      changesAttachments: changesAttachments || [],
+      changedAt: new Date(),
+    });
+
+    if (newStatus === "Completed") {
+      task.closedAt = new Date();
+    }
+
+    task.updatedAt = new Date();
+
+    await task.save();
+    res.status(200).json({ message: "Task status updated successfully", task });
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "An error occurred while updating the task status",
+        error: error.message,
+      });
+  }
+};
+
 exports.deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);

@@ -13,6 +13,7 @@ router.put(
   role(["Admin", "TeamLeader"]),
   taskController.updateTask
 );
+router.put("/:id/status", auth, taskController.updateTaskStatus);
 router.delete(
   "/:id",
   auth,
