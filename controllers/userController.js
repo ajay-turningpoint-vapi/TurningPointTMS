@@ -1,15 +1,14 @@
 const User = require("../models/User");
 const sendMail = require("../utils/mailer");
 
-
 //profile
 exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
-    if (!user) return res.status(404).send('User not found.');
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) return res.status(404).send("User not found.");
     res.send(user);
   } catch (err) {
-    res.status(500).send('Server error.');
+    res.status(500).send("Server error.");
   }
 };
 
@@ -19,7 +18,7 @@ exports.updateUserProfile = async (req, res) => {
 
   try {
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).send('User not found.');
+    if (!user) return res.status(404).send("User not found.");
 
     user.username = username || user.username;
     if (password) user.password = password; // Password will be hashed in the model pre-save hook
@@ -28,17 +27,29 @@ exports.updateUserProfile = async (req, res) => {
 
     res.send(user);
   } catch (err) {
-    res.status(500).send('Server error.');
+    res.status(500).send("Server error.");
   }
 };
-
-
-
 
 // Get all users
 exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    let users;
+
+    if (userRole === "Admin") {
+      // Admin can see all users
+      users = await User.find().select("-password");
+    } else if (userRole === "TeamLeader") {
+      // TeamLeader can see only their team members
+      users = await User.find({ teamLeader: userId }).select("-password");
+    } else {
+      // Other roles should not access this route
+      return res.status(403).send("Access denied.");
+    }
+
     res.send(users);
   } catch (err) {
     res.status(500).send("Server error.");
@@ -58,22 +69,51 @@ exports.getUser = async (req, res) => {
 
 // Create a user
 exports.createUser = async (req, res) => {
-  const { username, password, role } = req.body;
+  const { userName, department, emailID, phone, reportingTo, password, role } =
+    req.body;
+  const creatorRole = req.user.role;
+  const teamLeader = req.user._id;
+  if (creatorRole === "TeamLeader" && role !== "User") {
+    return res.status(403).send("TeamLeaders can only create Users.");
+  }
   try {
-    let user = await User.findOne({ username });
-    if (user) return res.status(400).send('User already exists.');
+    // Check if user with the same emailID already exists
+    let user = await User.findOne({ emailID });
+    if (user) {
+      return res
+        .status(400)
+        .json({ message: "User with this email already exists." });
+    }
 
-    user = new User({ username, password, role });
+    // Create a new user instance
+    user = new User({
+      userName,
+      department,
+      emailID,
+      phone,
+      reportingTo,
+      password,
+      role,
+    });
+
+    if (creatorRole === "TeamLeader") {
+      user.teamLeader = teamLeader;
+    }
+    // Save the user to the database
     await user.save();
 
-    sendMail(user.username, 'User Created', 'A new user has been created for you.');
+    // Optionally, you can send an email notification here
+    // sendMail(user.username, 'User Created', 'A new user has been created for you.');
 
-    res.status(201).send(user);
+    // Send a success response with the created user object
+    res
+      .status(201)
+      .json({ message: "User created successfully.", user, success: true });
   } catch (err) {
-    res.status(500).send('Server error.');
+    console.error("Error creating user:", err.message);
+    res.status(500).json({ message: "Server error.", success: false });
   }
 };
-
 // Update a user
 exports.updateUser = async (req, res) => {
   const { username, password, role } = req.body;

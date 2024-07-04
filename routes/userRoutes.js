@@ -7,7 +7,7 @@ router.get('/profile', auth, userController.getUserProfile);
 router.put('/profile', auth, userController.updateUserProfile);
 router.get('/', auth, role(['Admin', 'TeamLeader']), userController.getUsers);
 router.get('/:id', auth, role(['Admin', 'TeamLeader']), userController.getUser);
-router.post('/', auth, role(['Admin']), userController.createUser);
+router.post('/', auth, role(['Admin','TeamLeader']), userController.createUser);
 router.put('/:id', auth, role(['Admin', 'TeamLeader']), userController.updateUser);
 router.delete('/:id', auth, role(['Admin']), userController.deleteUser);
 

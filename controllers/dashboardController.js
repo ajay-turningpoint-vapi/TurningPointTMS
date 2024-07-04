@@ -17,12 +17,76 @@ const calculateStats = (tasks) => {
   };
 };
 
+// Helper function to calculate category-wise stats
+const calculateCategoryStats = (tasks) => {
+  const categories = [...new Set(tasks.map(task => task.category))];
+
+  const categoryStats = categories.map(category => {
+    const categoryTasks = tasks.filter(task => task.category === category);
+    return {
+      category,
+      ...calculateStats(categoryTasks)
+    };
+  });
+
+  return categoryStats;
+};
+
+// Helper function to get user task stats
+const getUserTaskStats = async (emailID) => {
+  const tasks = await Task.find({ assignTo: emailID });
+  const stats = calculateStats(tasks);
+  const categoryStats = calculateCategoryStats(tasks);
+
+  return { stats, categoryStats };
+};
+
+// Helper function to get team leader stats
+const getTeamLeaderStatus = async () => {
+  const teamLeaders = await User.find({ role: 'TeamLeader' }).lean();
+  const userStatusPromises = teamLeaders.map(async (teamLeader) => {
+    const teamMembers = await User.find({ teamLeader: teamLeader._id }).lean();
+
+    const memberStatuses = await Promise.all(teamMembers.map(async (member) => {
+      const memberStats = await getUserTaskStats(member.emailID);
+      return {
+        userName: member.userName,
+        ...memberStats
+      };
+    }));
+
+    const leaderStats = await getUserTaskStats(teamLeader.emailID);
+
+    return {
+      teamLeader: teamLeader.userName,
+      numberOfUsers: teamMembers.length,
+      leaderStats,
+      memberStatuses
+    };
+  });
+
+  return Promise.all(userStatusPromises);
+};
+
+// Helper function to get all users performance
+const getAllUsersPerformance = async () => {
+  const users = await User.find({ role: { $ne: 'Admin' } }).lean(); // Exclude Admins
+  const userPerformancePromises = users.map(async (user) => {
+    const userStats = await getUserTaskStats(user.emailID);
+    return {
+      userName: user.userName,
+      role: user.role,
+      ...userStats
+    };
+  });
+
+  return Promise.all(userPerformancePromises);
+};
+
 // Get individual user stats
 exports.getUserStats = async (req, res) => {
   try {
-    const tasks = await Task.find({ assignTo: req.user._id });
-    const stats = calculateStats(tasks);
-
+    const stats = await getUserTaskStats(req.user.emailID);
     res.send(stats);
   } catch (err) {
     res.status(500).send('Server error.');
@@ -32,12 +96,18 @@ exports.getUserStats = async (req, res) => {
 // Get team leader stats
 exports.getTeamLeaderStats = async (req, res) => {
   try {
-    const teamMembers = await User.find({ role: 'User' });
-    const tasks = await Task.find({ assignTo: { $in: teamMembers.map(user => user._id) } });
+    const teamMembers = await User.find({ role: 'User', teamLeader: req.user._id }).lean();
+    const memberStatuses = await Promise.all(teamMembers.map(async (member) => {
+      const memberStats = await getUserTaskStats(member.emailID);
+      return {
+        userName: member.userName,
+        ...memberStats
+      };
+    }));
 
-    const stats = calculateStats(tasks);
+    const leaderStats = await getUserTaskStats(req.user.emailID);
 
-    res.send(stats);
+    res.send({ leaderStats, memberStatuses });
   } catch (err) {
     res.status(500).send('Server error.');
   }
@@ -48,8 +118,21 @@ exports.getOverallStats = async (req, res) => {
   try {
     const tasks = await Task.find();
     const stats = calculateStats(tasks);
+    const categoryStats = calculateCategoryStats(tasks);
+    const teamLeaderStatus = await getTeamLeaderStatus();
+    const allUsersPerformance = await getAllUsersPerformance();
 
-    res.send(stats);
+    res.send({ stats, categoryStats, teamLeaderStatus, allUsersPerformance });
+  } catch (err) {
+    res.status(500).send('Server error.');
+  }
+};
+
+// Get all users performance
+exports.getAllUsersPerformance = async (req, res) => {
+  try {
+    const allUsersPerformance = await getAllUsersPerformance();
+    res.send(allUsersPerformance);
   } catch (err) {
     res.status(500).send('Server error.');
   }

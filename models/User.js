@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     enum: ["Admin", "TeamLeader", "User"],
   },
+  teamLeader: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   password: {
     type: String,
     required: true,

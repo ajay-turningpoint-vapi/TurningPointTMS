@@ -1,5 +1,8 @@
+const { default: mongoose } = require("mongoose");
+const { scheduleReminders } = require("../CronJobs/reminderScheduler");
 const Task = require("../models/Task");
 const sendMail = require("../utils/mailer");
+const User = require("../models/User");
 
 exports.createTask = async (req, res) => {
   const {
@@ -10,8 +13,9 @@ exports.createTask = async (req, res) => {
     priority,
     dueDate,
     attachments,
+    reminder,
   } = req.body;
-  console.log(req.body);
+
   try {
     const newTask = new Task({
       title,
@@ -22,10 +26,14 @@ exports.createTask = async (req, res) => {
       dueDate,
       createdBy: req.user.emailID,
       attachments,
+      reminder: reminder || null,
+      currentUser: req.user.emailID,
     });
 
     const task = await newTask.save();
-
+    if (reminder) {
+      scheduleReminders(task);
+    }
     // sendMail('recipient@example.com', 'New Task Created', `A new task "${title}" has been created.`);
 
     res.status(201).send(task);
@@ -37,9 +45,29 @@ exports.createTask = async (req, res) => {
 
 exports.getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find();
-    res.send(tasks);
+    const emailID = req.user.emailID;
+    const userRole = req.user.role;
+    const userId = req.user._id;
+
+    let tasks;
+
+    if (userRole === "Admin") {
+      tasks = await Task.find();
+    } else if (userRole === "TeamLeader") {
+      // TeamLeader can see tasks assigned to them and their team
+      const teamMembers = await User.find({ teamLeader: userId }).select(
+        "emailID"
+      );
+      const teamMemberEmailIds = teamMembers.map((member) => member.emailID);
+      tasks = await Task.find({
+        $or: [{ assignTo: emailID }, { assignTo: { $in: teamMemberEmailIds } }],
+      });
+    } else {
+      tasks = await Task.find({ assignTo: emailID });
+    }
+    res.send(tasks)
   } catch (err) {
+    console.log(err);
     res.status(500).send("Server error.");
   }
 };
@@ -58,48 +86,33 @@ exports.getTask = async (req, res) => {
 };
 
 exports.updateTask = async (req, res) => {
-  const {
-    title,
-    description,
-    category,
-    assignTo,
-    priority,
-    dueDate,
-    reminder,
-    status,
-    statusChangeReason,
-    attachments,
-  } = req.body;
-
-  if (!statusChangeReason)
-    return res.status(400).send("Status change reason is required.");
-
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).send("Task not found.");
-
-    task.title = title || task.title;
-    task.description = description || task.description;
-    task.category = category || task.category;
-    task.assignTo = assignTo || task.assignTo;
-    task.priority = priority || task.priority;
-    task.dueDate = dueDate || task.dueDate;
-    task.reminder = reminder || task.reminder;
-    task.status = status || task.status;
-    task.statusChangeReason = statusChangeReason;
-    task.attachments = attachments || task.attachments;
-
-    await task.save();
-
-    sendMail(
-      "recipient@example.com",
-      "Task Updated",
-      `The task "${task.title}" has been updated.`
+    // Merge req.body with the additional assignTo field
+    const updateData = {
+      ...req.body,
+      transfer: {
+        fromWhom: req.user.emailID,
+        reasonToTransfer: req.body.transfer.reasonToTransfer,
+      },
+    };
+    console.log(updateData);
+    // Update the task and return the new document
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
 
-    res.send(task);
+    if (!task) return res.status(404).json({ message: "Task not found." });
+
+    // Send the updated task as the response
+    res.json(task);
+
+    // Uncomment and modify this line to send an email notification
+    // sendMail("recipient@example.com", "Task Updated", `The task "${task.title}" has been updated.`);
   } catch (err) {
-    res.status(500).send("Server error.");
+    console.error(err.message);
+    res.status(500).json({ message: "Server error." });
   }
 };
 
@@ -118,7 +131,7 @@ exports.updateTaskStatus = async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
-
+    task.currentUser = req.user.emailID;
     task.status = newStatus;
     task.statusChanges.push({
       status: newStatus,
@@ -136,30 +149,51 @@ exports.updateTaskStatus = async (req, res) => {
     await task.save();
     res.status(200).json({ message: "Task status updated successfully", task });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "An error occurred while updating the task status",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "An error occurred while updating the task status",
+      error: error.message,
+    });
   }
 };
 
 exports.deleteTask = async (req, res) => {
+  const { id } = req.params;
+
+  // Validate the ID format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid Task ID." });
+  }
+
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).send("Task not found.");
+    // Find the task by ID and delete it
+    const task = await Task.findByIdAndDelete(id);
 
-    await task.remove();
+    // If the task is not found, return a 404 status with an error message
+    if (!task) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Task not found." });
+    }
 
-    sendMail(
-      "recipient@example.com",
-      "Task Deleted",
-      `The task "${task.title}" has been deleted.`
-    );
+    // Uncomment and configure the sendMail function if email functionality is needed
+    // sendMail(
+    //   "recipient@example.com",
+    //   "Task Deleted",
+    //   `The task "${task.title}" has been deleted.`
+    // );
 
-    res.send("Task removed.");
+    // Return a success response
+    res
+      .status(200)
+      .json({ success: true, message: "Task removed successfully." });
   } catch (err) {
-    res.status(500).send("Server error.");
+    // Log the error and return a 500 status with a generic error message
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };

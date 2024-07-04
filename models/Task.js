@@ -5,16 +5,26 @@ const taskSchema = new mongoose.Schema({
   description: { type: String, required: true },
   category: { type: String, required: true },
   createdBy: { type: String, required: true },
+  currentUser: { type: String, required: true },
   assignTo: { type: String, required: true },
   priority: { type: String, enum: ["Low", "Medium", "High"], required: true },
   dueDate: { type: Date, required: true },
-  reminder: { type: Date },
+  reminder: {
+    frequency: {
+      type: String,
+      enum: ["Daily", "Weekly", "Monthly"],
+    },
+    startDate: { type: Date },
+  },
   status: {
     type: String,
     enum: ["Open", "In Progress", "Completed"],
     default: "Open",
   },
-  statusChangeReason: { type: String },
+  transfer: {
+    fromWhom: { type: String },
+    reasonToTransfer: { type: String },
+  },
   attachments: [
     {
       type: { type: String, enum: ["application", "image", "pdf"] },
@@ -28,6 +38,7 @@ const taskSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   closedAt: { type: Date, default: null },
+
   statusChanges: [
     {
       status: {
@@ -36,6 +47,7 @@ const taskSchema = new mongoose.Schema({
         required: true,
       },
       reason: { type: String, required: true },
+      // updatedTaskBy: { type: String, required: true },
       changesAttachments: [
         {
           type: { type: String, enum: ["application", "image", "pdf"] },
