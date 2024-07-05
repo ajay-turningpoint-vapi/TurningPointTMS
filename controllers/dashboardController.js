@@ -1,31 +1,35 @@
-const Task = require('../models/Task');
-const User = require('../models/User');
+const Task = require("../models/Task");
+const User = require("../models/User");
 
 // Helper function to calculate stats
 const calculateStats = (tasks) => {
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(task => task.status === 'Completed').length;
-  const openTasks = tasks.filter(task => task.status === 'Open').length;
-  const inProgressTasks = tasks.filter(task => task.status === 'In Progress').length;
+  const completedTasks = tasks.filter(
+    (task) => task.status === "Completed"
+  ).length;
+  const openTasks = tasks.filter((task) => task.status === "Open").length;
+  const inProgressTasks = tasks.filter(
+    (task) => task.status === "In Progress"
+  ).length;
 
   return {
     totalTasks,
     completedTasks,
     openTasks,
     inProgressTasks,
-    completionRate: totalTasks ? (completedTasks / totalTasks) * 100 : 0
+    completionRate: totalTasks ? (completedTasks / totalTasks) * 100 : 0,
   };
 };
 
 // Helper function to calculate category-wise stats
 const calculateCategoryStats = (tasks) => {
-  const categories = [...new Set(tasks.map(task => task.category))];
+  const categories = [...new Set(tasks.map((task) => task.category))];
 
-  const categoryStats = categories.map(category => {
-    const categoryTasks = tasks.filter(task => task.category === category);
+  const categoryStats = categories.map((category) => {
+    const categoryTasks = tasks.filter((task) => task.category === category);
     return {
       category,
-      ...calculateStats(categoryTasks)
+      ...calculateStats(categoryTasks),
     };
   });
 
@@ -43,17 +47,19 @@ const getUserTaskStats = async (emailID) => {
 
 // Helper function to get team leader stats
 const getTeamLeaderStatus = async () => {
-  const teamLeaders = await User.find({ role: 'TeamLeader' }).lean();
+  const teamLeaders = await User.find({ role: "TeamLeader" }).lean();
   const userStatusPromises = teamLeaders.map(async (teamLeader) => {
     const teamMembers = await User.find({ teamLeader: teamLeader._id }).lean();
 
-    const memberStatuses = await Promise.all(teamMembers.map(async (member) => {
-      const memberStats = await getUserTaskStats(member.emailID);
-      return {
-        userName: member.userName,
-        ...memberStats
-      };
-    }));
+    const memberStatuses = await Promise.all(
+      teamMembers.map(async (member) => {
+        const memberStats = await getUserTaskStats(member.emailID);
+        return {
+          userName: member.userName,
+          ...memberStats,
+        };
+      })
+    );
 
     const leaderStats = await getUserTaskStats(teamLeader.emailID);
 
@@ -61,7 +67,7 @@ const getTeamLeaderStatus = async () => {
       teamLeader: teamLeader.userName,
       numberOfUsers: teamMembers.length,
       leaderStats,
-      memberStatuses
+      memberStatuses,
     };
   });
 
@@ -70,13 +76,13 @@ const getTeamLeaderStatus = async () => {
 
 // Helper function to get all users performance
 const getAllUsersPerformance = async () => {
-  const users = await User.find({ role: { $ne: 'Admin' } }).lean(); // Exclude Admins
+  const users = await User.find({ role: { $ne: "Admin" } }).lean(); // Exclude Admins
   const userPerformancePromises = users.map(async (user) => {
     const userStats = await getUserTaskStats(user.emailID);
     return {
       userName: user.userName,
       role: user.role,
-      ...userStats
+      ...userStats,
     };
   });
 
@@ -89,27 +95,32 @@ exports.getUserStats = async (req, res) => {
     const stats = await getUserTaskStats(req.user.emailID);
     res.send(stats);
   } catch (err) {
-    res.status(500).send('Server error.');
+    res.status(500).send("Server error.");
   }
 };
 
 // Get team leader stats
 exports.getTeamLeaderStats = async (req, res) => {
   try {
-    const teamMembers = await User.find({ role: 'User', teamLeader: req.user._id }).lean();
-    const memberStatuses = await Promise.all(teamMembers.map(async (member) => {
-      const memberStats = await getUserTaskStats(member.emailID);
-      return {
-        userName: member.userName,
-        ...memberStats
-      };
-    }));
+    const teamMembers = await User.find({
+      role: "User",
+      teamLeader: req.user._id,
+    }).lean();
+    const memberStatuses = await Promise.all(
+      teamMembers.map(async (member) => {
+        const memberStats = await getUserTaskStats(member.emailID);
+        return {
+          userName: member.userName,
+          ...memberStats,
+        };
+      })
+    );
 
     const leaderStats = await getUserTaskStats(req.user.emailID);
 
     res.send({ leaderStats, memberStatuses });
   } catch (err) {
-    res.status(500).send('Server error.');
+    res.status(500).send("Server error.");
   }
 };
 
@@ -124,7 +135,7 @@ exports.getOverallStats = async (req, res) => {
 
     res.send({ stats, categoryStats, teamLeaderStatus, allUsersPerformance });
   } catch (err) {
-    res.status(500).send('Server error.');
+    res.status(500).send("Server error.");
   }
 };
 
@@ -134,6 +145,20 @@ exports.getAllUsersPerformance = async (req, res) => {
     const allUsersPerformance = await getAllUsersPerformance();
     res.send(allUsersPerformance);
   } catch (err) {
-    res.status(500).send('Server error.');
+    res.status(500).send("Server error.");
+  }
+};
+
+const getCategoryWisePerformance = async () => {
+  const tasks = await Task.find();
+  const categoryStats = calculateCategoryStats(tasks);
+  return categoryStats;
+};
+exports.getCategoryWisePerformance = async (req, res) => {
+  try {
+    const categoryStats = await getCategoryWisePerformance();
+    res.send(categoryStats);
+  } catch (err) {
+    res.status(500).send("Server error.");
   }
 };

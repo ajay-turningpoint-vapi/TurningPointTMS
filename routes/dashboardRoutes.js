@@ -23,5 +23,11 @@ router.get(
   role(["Admin"]),
   dashboardController.getAllUsersPerformance
 );
+router.get(
+  "/allcategoryperformance",
+  auth,
+  role(["Admin"]),
+  dashboardController.getCategoryWisePerformance
+);
 module.exports = router;
 
