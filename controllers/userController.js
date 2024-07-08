@@ -14,14 +14,21 @@ exports.getUserProfile = async (req, res) => {
 
 // Update current user profile
 exports.updateUserProfile = async (req, res) => {
-  const { username, password } = req.body;
+  const { userName, department, emailID, phone, role, teamLeader, password } =
+    req.body;
 
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).send("User not found.");
 
-    user.username = username || user.username;
+    user.userName = userName || user.userName;
+    user.department = department || user.department;
+    user.emailID = emailID || user.emailID;
+    user.phone = phone || user.phone;
+    user.role = role || user.role;
+    user.teamLeader = teamLeader || user.teamLeader;
     if (password) user.password = password; // Password will be hashed in the model pre-save hook
+    user.updatedStamp = Date.now();
 
     await user.save();
 
