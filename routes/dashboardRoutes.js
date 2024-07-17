@@ -30,4 +30,3 @@ router.get(
   dashboardController.getCategoryWisePerformance
 );
 module.exports = router;
-

@@ -76,7 +76,7 @@ const getTeamLeaderStatus = async () => {
 
 // Helper function to get all users performance
 const getAllUsersPerformance = async () => {
-  const users = await User.find({ role: { $ne: "Admin" } }).lean(); // Exclude Admins
+  const users = await User.find().lean(); // Exclude Admins
   const userPerformancePromises = users.map(async (user) => {
     const userStats = await getUserTaskStats(user.emailID);
     return {

@@ -1,26 +1,26 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  service: 'Gmail', // Use your email service provider
+  service: "Gmail", // Use your email service provider
   auth: {
-    user: 'your_email@gmail.com',
-    pass: 'your_email_password'
-  }
+    user: "ajay@turningpointvapi.com",
+    pass: "ajayturningpointvapi2024",
+  },
 });
 
 const sendMail = (to, subject, text) => {
   const mailOptions = {
-    from: 'your_email@gmail.com',
+    from: "ajay@turningpointvapi.com",
     to,
     subject,
-    text
+    text,
   };
 
   transporter.sendMail(mailOptions, (err, info) => {
     if (err) {
-      console.log('Error sending email:', err);
+      console.log("Error sending email:", err);
     } else {
-      console.log('Email sent:', info.response);
+      console.log("Email sent:", info.response);
     }
   });
 };

@@ -5,7 +5,7 @@ const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 router.get("/profile", auth, userController.getUserProfile);
 router.put("/profile", auth, userController.updateUserProfile);
-router.get("/", auth, role(["Admin", "TeamLeader"]), userController.getUsers);
+router.get("/", auth, role(["Admin", "TeamLeader","User"]), userController.getUsers);
 router.get("/:id", auth, role(["Admin", "TeamLeader"]), userController.getUser);
 router.post(
   "/",

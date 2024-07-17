@@ -1,3 +1,4 @@
+const Task = require("../models/Task");
 const User = require("../models/User");
 const sendMail = require("../utils/mailer");
 
@@ -110,7 +111,11 @@ exports.createUser = async (req, res) => {
     await user.save();
 
     // Optionally, you can send an email notification here
-    // sendMail(user.username, 'User Created', 'A new user has been created for you.');
+    sendMail(
+      user.userName,
+      "User Created",
+      `A new user has been created EmailId : &{user.emailID} and Password : &{req.body.password}`
+    );
 
     // Send a success response with the created user object
     res
@@ -123,20 +128,40 @@ exports.createUser = async (req, res) => {
 };
 // Update a user
 exports.updateUser = async (req, res) => {
-  const { username, password, role } = req.body;
+  const {
+    userName,
+    password,
+    role,
+    department,
+    emailID,
+    phone,
+    teamLeader,
+    reportingTo,
+  } = req.body;
 
   try {
-    const user = await User.findById(req.params.id);
+    // Construct the update object
+    const updateFields = {};
+    if (userName) updateFields.userName = userName;
+    if (password) updateFields.password = password; // Password will be hashed in the model pre-save hook
+    if (role) updateFields.role = role;
+    if (department) updateFields.department = department;
+    if (emailID) updateFields.emailID = emailID;
+    if (phone) updateFields.phone = phone;
+    if (teamLeader) updateFields.teamLeader = teamLeader;
+    if (reportingTo) updateFields.reportingTo = reportingTo;
+    updateFields.updatedStamp = Date.now();
+
+    // Use findByIdAndUpdate to update the user
+    const user = await User.findByIdAndUpdate(req.params.id, updateFields, {
+      new: true,
+      runValidators: true,
+    });
     if (!user) return res.status(404).send("User not found.");
 
-    user.username = username || user.username;
-    if (password) user.password = password; // Password will be hashed in the model pre-save hook
-    user.role = role || user.role;
-
-    await user.save();
-
+    // Uncomment and modify this if you have a mail-sending functionality
     sendMail(
-      user.username,
+      user.emailID,
       "User Updated",
       "Your user details have been updated."
     );
@@ -146,23 +171,26 @@ exports.updateUser = async (req, res) => {
     res.status(500).send("Server error.");
   }
 };
-
 // Delete a user
 exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).send("User not found.");
 
+    // Delete all tasks assigned to the user
+    await Task.deleteMany({ assignTo: user.emailID });
+
     await user.remove();
 
     sendMail(
-      user.username,
+      user.emailId,
       "User Deleted",
       "Your user account has been deleted."
     );
 
-    res.send("User removed.");
+    res.send("User and assigned tasks removed.");
   } catch (err) {
+    console.error(err);
     res.status(500).send("Server error.");
   }
 };

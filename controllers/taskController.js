@@ -34,7 +34,11 @@ exports.createTask = async (req, res) => {
     if (reminder) {
       scheduleReminders(task);
     }
-    // sendMail('recipient@example.com', 'New Task Created', `A new task "${title}" has been created.`);
+    sendMail(
+      task.assignTo,
+      "New Task Created",
+      `A new task "${title}" has been created.`
+    );
 
     res.status(201).send(task);
   } catch (err) {
@@ -48,26 +52,40 @@ exports.getTasks = async (req, res) => {
     const emailID = req.user.emailID;
     const userRole = req.user.role;
     const userId = req.user._id;
+    const isDelayParam = req.query.isDelay; // Check if isDelay parameter is provided
 
-    let tasks;
+    let tasksQuery = {};
+
+    if (isDelayParam === "true") {
+      tasksQuery.isDelay = true;
+    }
 
     if (userRole === "Admin") {
-      tasks = await Task.find();
+      // Admin can see all tasks, optionally filtered by isDelay
+      tasks = await Task.find(tasksQuery);
     } else if (userRole === "TeamLeader") {
-      // TeamLeader can see tasks assigned to them and their team
+      // TeamLeader can see tasks assigned to them and their team, optionally filtered by isDelay
       const teamMembers = await User.find({ teamLeader: userId }).select(
         "emailID"
       );
       const teamMemberEmailIds = teamMembers.map((member) => member.emailID);
-      tasks = await Task.find({
-        $or: [{ assignTo: emailID }, { assignTo: { $in: teamMemberEmailIds } }],
-      });
+
+      tasksQuery.$or = [
+        { assignTo: emailID },
+        { assignTo: { $in: teamMemberEmailIds } },
+      ];
+
+      tasks = await Task.find(tasksQuery);
     } else {
-      tasks = await Task.find({ assignTo: emailID });
+      // Regular user can see tasks assigned to them, optionally filtered by isDelay
+      tasksQuery.assignTo = emailID;
+
+      tasks = await Task.find(tasksQuery);
     }
-    res.send(tasks)
+
+    res.send(tasks);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).send("Server error.");
   }
 };
@@ -87,15 +105,17 @@ exports.getTask = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
   try {
-    // Merge req.body with the additional assignTo field
-    const updateData = {
-      ...req.body,
-      transfer: {
+    // Initialize updateData with the request body
+    const updateData = { ...req.body };
+
+    // If transfer information is provided, add it to updateData
+    if (req.body.transfer) {
+      updateData.transfer = {
         fromWhom: req.user.emailID,
         reasonToTransfer: req.body.transfer.reasonToTransfer,
-      },
-    };
-    console.log(updateData);
+      };
+    }
+
     // Update the task and return the new document
     const task = await Task.findByIdAndUpdate(
       req.params.id,
@@ -109,7 +129,7 @@ exports.updateTask = async (req, res) => {
     res.json(task);
 
     // Uncomment and modify this line to send an email notification
-    // sendMail("recipient@example.com", "Task Updated", `The task "${task.title}" has been updated.`);
+    // sendMail(, "Task Updated", `The task "${task.title}" has been updated.`);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: "Server error." });
@@ -136,6 +156,7 @@ exports.updateTaskStatus = async (req, res) => {
     task.statusChanges.push({
       status: newStatus,
       reason: reason,
+      updatedTaskBy: req.user.emailID,
       changesAttachments: changesAttachments || [],
       changedAt: new Date(),
     });

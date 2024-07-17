@@ -47,7 +47,7 @@ const taskSchema = new mongoose.Schema({
         required: true,
       },
       reason: { type: String, required: true },
-      // updatedTaskBy: { type: String, required: true },
+      updatedTaskBy: { type: String, required: true },
       changesAttachments: [
         {
           type: { type: String, enum: ["application", "image", "pdf"] },
