@@ -112,9 +112,22 @@ exports.createUser = async (req, res) => {
 
     // Optionally, you can send an email notification here
     sendMail(
-      user.userName,
-      "User Created",
-      `A new user has been created EmailId : &{user.emailID} and Password : &{req.body.password}`
+      emailID,
+      "User Created for Turningpoint Taskfiy App",
+      `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>User Created</h2>
+        <p>A new user has been created with the following details:</p>
+        <ul>
+          <li><strong>Username:</strong> ${userName}</li>
+          <li><strong>Department:</strong> ${department}</li>
+          <li><strong>Email ID:</strong> ${emailID}</li>
+          <li><strong>Phone:</strong> ${phone}</li>
+          <li><strong>Role:</strong> ${role}</li>
+          <li><strong>Password:</strong> ${req.body.password}</li>
+        </ul>
+      </div>
+      `
     );
 
     // Send a success response with the created user object
@@ -180,12 +193,22 @@ exports.deleteUser = async (req, res) => {
     // Delete all tasks assigned to the user
     await Task.deleteMany({ assignTo: user.emailID });
 
-    await user.remove();
+    await User.deleteOne({ _id: req.params.id });
 
     sendMail(
-      user.emailId,
+      user.emailID,
       "User Deleted",
-      "Your user account has been deleted."
+      `
+      <html>
+        <body>
+          <h2>Your Account has been Deleted</h2>
+          <p>Dear ${user.userName},</p>
+          <p>Your user account has been successfully deleted from our system.</p>
+          <p>If you have any questions, please contact support.</p>
+          <p>Best regards,<br>Turning Point Team</p>
+        </body>
+      </html>
+      `
     );
 
     res.send("User and assigned tasks removed.");

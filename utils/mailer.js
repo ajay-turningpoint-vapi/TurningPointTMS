@@ -8,12 +8,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendMail = (to, subject, text) => {
+const sendMail = (to, subject, htmlContent) => {
   const mailOptions = {
     from: "ajay@turningpointvapi.com",
     to,
     subject,
-    text,
+    html: htmlContent,
   };
 
   transporter.sendMail(mailOptions, (err, info) => {

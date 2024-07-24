@@ -105,10 +105,8 @@ exports.getTask = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
   try {
-    // Initialize updateData with the request body
     const updateData = { ...req.body };
 
-    // If transfer information is provided, add it to updateData
     if (req.body.transfer) {
       updateData.transfer = {
         fromWhom: req.user.emailID,
@@ -116,20 +114,45 @@ exports.updateTask = async (req, res) => {
       };
     }
 
-    // Update the task and return the new document
+    const currentTask = await Task.findById(req.params.id);
+    if (!currentTask)
+      return res.status(404).json({ message: "Task not found." });
+
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       { $set: updateData },
       { new: true, runValidators: true }
     );
 
-    if (!task) return res.status(404).json({ message: "Task not found." });
+    const updatedFields = Object.keys(updateData).filter(
+      (key) =>
+        JSON.stringify(currentTask[key]) !== JSON.stringify(updateData[key])
+    );
 
-    // Send the updated task as the response
+    const updatedFieldsText = updatedFields
+      .map((field) => `${field}: ${updateData[field]}`)
+      .join(", ");
+
     res.json(task);
 
-    // Uncomment and modify this line to send an email notification
-    // sendMail(, "Task Updated", `The task "${task.title}" has been updated.`);
+    sendMail(
+      req.body.assignTo,
+      "Task Updated Turningpoint Taskify App",
+      `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <p>Hello,</p>
+        <p>The task "<strong>${task.title}</strong>" has been updated.</p>
+        <p><strong>Updated fields:</strong></p>
+        <ul>
+          ${updatedFieldsText
+            .split(", ")
+            .map((field) => `<li>${field}</li>`)
+            .join("")}
+        </ul>
+        <p>Best regards,<br>Turning Point Team</p>
+      </div>
+      `
+    );
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: "Server error." });
@@ -151,6 +174,7 @@ exports.updateTaskStatus = async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
+
     task.currentUser = req.user.emailID;
     task.status = newStatus;
     task.statusChanges.push({
@@ -168,6 +192,23 @@ exports.updateTaskStatus = async (req, res) => {
     task.updatedAt = new Date();
 
     await task.save();
+
+    // Send email notification
+    sendMail(
+      task.assignTo,
+      "Task Status Updated",
+      `
+      <html>
+        <body>
+          <h2>Task Status Updated</h2>
+          <p>The status of the task <strong>${task.title}</strong> has been updated to <strong>${newStatus}</strong>.</p>
+          <p>Reason: ${reason}</p>
+          <p>Updated by: ${req.user.emailID}</p>
+        </body>
+      </html>
+      `
+    );
+
     res.status(200).json({ message: "Task status updated successfully", task });
   } catch (error) {
     res.status(500).json({
