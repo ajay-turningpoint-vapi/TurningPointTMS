@@ -34,10 +34,26 @@ exports.createTask = async (req, res) => {
     if (reminder) {
       scheduleReminders(task);
     }
-    sendMail(
+  sendMail(
       task.assignTo,
-      "New Task Created",
-      `A new task "${title}" has been created.`
+      "Exciting News! A New Task Awaits You",
+      `
+      <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+          <h2 style="color: #0056b3;">You've Got a New Task!</h2>
+          <p>${req.user.emailID} has assigned you a new task. Dive into the details below and get started!</p>
+          <hr>
+          <p><strong>Title:</strong> ${title}</p>
+          <p><strong>Description:</strong> ${description}</p>
+          <p><strong>Category:</strong> ${category}</p>
+          <p><strong>Assigned To:</strong> ${assignTo}</p>
+          <p><strong>Priority:</strong> <span style="color: ${priority === 'High' ? 'red' : 'green'};">${priority}</span></p>
+          <p><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString()}</p>
+          <hr>
+          <p>Turning Point Team!</p>
+        </body>
+      </html>
+      `
     );
 
     res.status(201).send(task);
@@ -60,14 +76,14 @@ exports.getTasks = async (req, res) => {
       tasksQuery.isDelay = true;
     }
 
+    let tasks;
+
     if (userRole === "Admin") {
       // Admin can see all tasks, optionally filtered by isDelay
-      tasks = await Task.find(tasksQuery);
+      tasks = await Task.find(tasksQuery).sort({ _id: -1 }); // Sort by _id in descending order
     } else if (userRole === "TeamLeader") {
       // TeamLeader can see tasks assigned to them and their team, optionally filtered by isDelay
-      const teamMembers = await User.find({ teamLeader: userId }).select(
-        "emailID"
-      );
+      const teamMembers = await User.find({ teamLeader: userId }).select("emailID");
       const teamMemberEmailIds = teamMembers.map((member) => member.emailID);
 
       tasksQuery.$or = [
@@ -75,12 +91,12 @@ exports.getTasks = async (req, res) => {
         { assignTo: { $in: teamMemberEmailIds } },
       ];
 
-      tasks = await Task.find(tasksQuery);
+      tasks = await Task.find(tasksQuery).sort({ _id: -1 }); // Sort by _id in descending order
     } else {
       // Regular user can see tasks assigned to them, optionally filtered by isDelay
       tasksQuery.assignTo = emailID;
 
-      tasks = await Task.find(tasksQuery);
+      tasks = await Task.find(tasksQuery).sort({ _id: -1 }); // Sort by _id in descending order
     }
 
     res.send(tasks);
