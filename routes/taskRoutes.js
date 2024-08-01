@@ -4,8 +4,15 @@ const taskController = require("../controllers/taskController");
 const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 
-router.post("/", auth,role(["Admin", "TeamLeader"]), taskController.createTask);
+router.post(
+  "/",
+  auth,
+  role(["Admin", "TeamLeader"]),
+  taskController.createTask
+);
 router.get("/", auth, taskController.getTasks);
+router.get("/mytasks", auth, taskController.getMyTasks);
+router.get("/delegatedtasks", auth, taskController.getDelegatedTasks);
 router.get("/:id", auth, taskController.getTask);
 router.patch(
   "/:id",

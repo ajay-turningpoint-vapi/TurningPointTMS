@@ -12,7 +12,7 @@ exports.register = async (req, res) => {
     }
 
     // Check if the email or username is already in use
-    let user = await User.findOne({ $or: [{ emailID }, { userName }] });
+    let user = await User.findOne({ $or: [{ emailID }] });
     if (user) {
       return res.status(400).json({
         message:

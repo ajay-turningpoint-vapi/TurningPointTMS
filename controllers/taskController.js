@@ -1,5 +1,5 @@
 const { default: mongoose } = require("mongoose");
-const { scheduleReminders } = require("../CronJobs/reminderScheduler");
+const { scheduleReminders, cancelReminder } = require("../CronJobs/reminderScheduler");
 const Task = require("../models/Task");
 const sendMail = require("../utils/mailer");
 const User = require("../models/User");
@@ -50,7 +50,7 @@ exports.createTask = async (req, res) => {
           <p><strong>Priority:</strong> <span style="color: ${priority === 'High' ? 'red' : 'green'};">${priority}</span></p>
           <p><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString()}</p>
           <hr>
-          <p>Turning Point Team!</p>
+           <p>Best regards,<br>Turning Point Team</p>
         </body>
       </html>
       `
@@ -68,22 +68,24 @@ exports.getTasks = async (req, res) => {
     const emailID = req.user.emailID;
     const userRole = req.user.role;
     const userId = req.user._id;
-    const isDelayParam = req.query.isDelay; // Check if isDelay parameter is provided
+    const isDelayededParam = req.query.isDelayeded; // Check if isDelayeded parameter is provided
 
     let tasksQuery = {};
 
-    if (isDelayParam === "true") {
-      tasksQuery.isDelay = true;
+    if (isDelayededParam === "true") {
+      tasksQuery.isDelayeded = true;
     }
 
     let tasks;
 
     if (userRole === "Admin") {
-      // Admin can see all tasks, optionally filtered by isDelay
+      // Admin can see all tasks, optionally filtered by isDelayeded
       tasks = await Task.find(tasksQuery).sort({ _id: -1 }); // Sort by _id in descending order
     } else if (userRole === "TeamLeader") {
-      // TeamLeader can see tasks assigned to them and their team, optionally filtered by isDelay
-      const teamMembers = await User.find({ teamLeader: userId }).select("emailID");
+      // TeamLeader can see tasks assigned to them and their team, optionally filtered by isDelayeded
+      const teamMembers = await User.find({ teamLeader: userId }).select(
+        "emailID"
+      );
       const teamMemberEmailIds = teamMembers.map((member) => member.emailID);
 
       tasksQuery.$or = [
@@ -93,18 +95,57 @@ exports.getTasks = async (req, res) => {
 
       tasks = await Task.find(tasksQuery).sort({ _id: -1 }); // Sort by _id in descending order
     } else {
-      // Regular user can see tasks assigned to them, optionally filtered by isDelay
+      // Regular user can see tasks assigned to them, optionally filtered by isDelayeded
       tasksQuery.assignTo = emailID;
 
       tasks = await Task.find(tasksQuery).sort({ _id: -1 }); // Sort by _id in descending order
     }
 
-    res.send(tasks);
+    res.json({ message: 'Tasks retrieved successfully', tasks });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error.");
+    res.status(500).json({ error: 'Server error.' });
   }
 };
+
+exports.getMyTasks = async (req, res) => {
+  try {
+    const { emailID } = req.user;
+    const isDelayededParam = req.query.isDelayeded;
+
+    let tasksQuery = { assignTo: emailID };
+
+    if (isDelayededParam === "true") {
+      tasksQuery.isDelayeded = true;
+    }
+
+    const myTasks = await Task.find(tasksQuery).sort({ _id: -1 });
+    res.json({ message: 'My tasks retrieved successfully', tasks: myTasks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+};
+
+exports.getDelegatedTasks = async (req, res) => {
+  try {
+    const { emailID } = req.user;
+    const isDelayededParam = req.query.isDelayeded;
+
+    let tasksQuery = { createdBy: emailID };
+
+    if (isDelayededParam === "true") {
+      tasksQuery.isDelayeded = true;
+    }
+
+    const delegatedTasks = await Task.find(tasksQuery).sort({ _id: -1 });
+    res.json({ message: 'Delegated tasks retrieved successfully', tasks: delegatedTasks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+};
+
 
 exports.getTask = async (req, res) => {
   try {
@@ -196,13 +237,14 @@ exports.updateTaskStatus = async (req, res) => {
     task.statusChanges.push({
       status: newStatus,
       reason: reason,
-      updatedTaskBy: req.user.emailID,
+      taskUpdatedBy: req.user.emailID,
       changesAttachments: changesAttachments || [],
       changedAt: new Date(),
     });
 
     if (newStatus === "Completed") {
       task.closedAt = new Date();
+      cancelReminder(task._id);
     }
 
     task.updatedAt = new Date();
@@ -220,6 +262,7 @@ exports.updateTaskStatus = async (req, res) => {
           <p>The status of the task <strong>${task.title}</strong> has been updated to <strong>${newStatus}</strong>.</p>
           <p>Reason: ${reason}</p>
           <p>Updated by: ${req.user.emailID}</p>
+           <p>Best regards,<br>Turning Point Team</p>
         </body>
       </html>
       `

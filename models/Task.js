@@ -31,7 +31,7 @@ const taskSchema = new mongoose.Schema({
       path: { type: String },
     },
   ],
-  isDelay: {
+  isDelayed: {
     type: Boolean,
     default: false,
   },
@@ -47,7 +47,7 @@ const taskSchema = new mongoose.Schema({
         required: true,
       },
       reason: { type: String, required: true },
-      updatedTaskBy: { type: String },
+      taskUpdatedBy: { type: String },
       changesAttachments: [
         {
           type: { type: String, enum: ["application", "image", "pdf"] },

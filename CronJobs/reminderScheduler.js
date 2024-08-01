@@ -1,6 +1,6 @@
 const schedule = require("node-schedule");
 const { sendReminder } = require("../utils/sendReminder");
-
+const jobMap = new Map();
 
 const scheduleReminders = (task) => {
   if (!task.reminder || !task.reminder.frequency || !task.reminder.startDate) {
@@ -24,9 +24,18 @@ const scheduleReminders = (task) => {
       break;
   }
 
-  schedule.scheduleJob(rule, () => sendReminder(task));
+  const job = schedule.scheduleJob(rule, () => sendReminder(task));
+  jobMap.set(task._id.toString(), job);
 };
 
+const cancelReminder = (taskId) => {
+  const job = jobMap.get(taskId);
+  if (job) {
+    job.cancel();
+    jobMap.delete(taskId);
+  }
+};
 module.exports = {
   scheduleReminders,
+  cancelReminder,
 };

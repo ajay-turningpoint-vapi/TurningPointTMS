@@ -62,7 +62,7 @@ const sendReminder = (task) => {
           </div>
           <p>This is a reminder for the task mentioned above. Please make sure to complete it by the due date.</p>
           <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} Turning Point Taskify App. All rights reserved.</p>
+             <p>Best regards,<br>Turning Point Team</p>
           </div>
         </div>
       </body>
@@ -72,6 +72,33 @@ const sendReminder = (task) => {
   sendMail(task.assignTo, reminderSubject, reminderHtmlContent);
 };
 
+const sendDelayMail = (task) => {
+  if (task.status === "Completed" || task.status === "In Progress") {
+    return;
+  }
+  const delayedHtml = `
+<div style="font-family: Arial, sans-serif; line-height: 1.6;">
+  <h2 style="color: #2E86C1;">Task Delay Notification</h2>
+  <p>Dear Team Member,</p>
+  <p>We hope this message finds you well.</p>
+  <p>We wanted to inform you that the task titled "<strong>${
+    task.title
+  }</strong>" has been delayed. Please take note of this change and adjust your plans accordingly.</p>
+  <p>Details:</p>
+  <ul>
+    <li><strong>Task Title:</strong> ${task.title}</li>
+    <li><strong>Description:</strong> ${task.description}</li>
+    <li><strong>Original Due Date:</strong> ${new Date(
+      task.dueDate
+    ).toLocaleDateString()}</li>
+  </ul>
+  <p>Best regards,<br>Turning Point Team</p>
+</div>
+`;
+  sendMail(task.assignTo, "Task Delay Notification", delayedHtml);
+};
+  
 module.exports = {
   sendReminder,
+  sendDelayMail,
 };

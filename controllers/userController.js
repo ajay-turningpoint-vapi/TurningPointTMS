@@ -126,6 +126,7 @@ exports.createUser = async (req, res) => {
           <li><strong>Role:</strong> ${role}</li>
           <li><strong>Password:</strong> ${req.body.password}</li>
         </ul>
+         <p>Best regards,<br>Turning Point Team</p>
       </div>
       `
     );
@@ -172,12 +173,85 @@ exports.updateUser = async (req, res) => {
     });
     if (!user) return res.status(404).send("User not found.");
 
-    // Uncomment and modify this if you have a mail-sending functionality
-    sendMail(
-      user.emailID,
-      "User Updated",
-      "Your user details have been updated."
-    );
+    const mailSubject = "User Details Updated";
+    const mailHtmlContent = `<html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f4;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #ffffff;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+          color: #333333;
+          font-size: 24px;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        p {
+          font-size: 16px;
+          color: #555555;
+          margin: 10px 0;
+        }
+        .user-details {
+          border: 1px solid #dddddd;
+          border-radius: 4px;
+          padding: 15px;
+          background-color: #f9f9f9;
+        }
+        .user-details p {
+          margin: 5px 0;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 20px;
+          font-size: 14px;
+          color: #888888;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>Details Updated</h1>
+        <p>Your user details have been updated. Please find the updated details below:</p>
+        <div class="user-details">
+          ${userName ? `<p><strong>User Name:</strong> ${userName}</p>` : ""}
+          ${password ? `<p><strong>Password:</strong> ${password}</p>` : ""}
+          ${role ? `<p><strong>Role:</strong> ${role}</p>` : ""}
+          ${
+            department
+              ? `<p><strong>Department:</strong> ${department}</p>`
+              : ""
+          }
+          ${emailID ? `<p><strong>Email ID:</strong> ${emailID}</p>` : ""}
+          ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ""}
+          ${
+            teamLeader
+              ? `<p><strong>Team Leader:</strong> ${teamLeader}</p>`
+              : ""
+          }
+          
+          <p><strong>Updated On:</strong> ${new Date(
+            updateFields.updatedStamp
+          ).toLocaleString()}</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} Turning Point. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+  </html>`;
+
+    sendMail(user.emailID, mailSubject, mailHtmlContent);
 
     res.send(user);
   } catch (err) {

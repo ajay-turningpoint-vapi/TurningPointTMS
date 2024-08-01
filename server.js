@@ -7,6 +7,8 @@ const taskRoutes = require("./routes/taskRoutes");
 const userRoutes = require("./routes/userRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const Task = require("./models/Task.js");
+const fileRoute = require("./routes/fileRoutes.js");
+const { sendDelayMail } = require("./utils/sendReminder.js");
 require("dotenv").config();
 const app = express();
 
@@ -20,21 +22,29 @@ mongoose
   .then(() => {
     console.log("MongoDB connected");
 
-    // Function to update isDelay for existing tasks
-    async function updateIsDelayForExistingTasks() {
+    // Function to update isDelayed for existing tasks
+    async function updateisDelayedForExistingTasks() {
       try {
+        const tasks = await Task.find({ dueDate: { $lt: new Date() } });
+
         await Task.updateMany(
           { dueDate: { $lt: new Date() } },
-          { $set: { isDelay: true } }
+          { $set: { isDelayed: true } }
         );
+
         console.log("Existing tasks updated successfully.");
+
+        // Send email for delayed tasks
+        for (const task of tasks) {
+          await sendDelayMail(task);
+        }
       } catch (error) {
         console.error("Error updating existing tasks:", error);
       }
     }
 
     // Call the function to update existing tasks
-    updateIsDelayForExistingTasks();
+    updateisDelayedForExistingTasks();
   })
   .catch((err) => console.error("MongoDB connection error:", err));
 
@@ -46,8 +56,8 @@ app.get("/api", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/dashboard", dashboardRoutes); // Add this line
-
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api", fileRoute);
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
