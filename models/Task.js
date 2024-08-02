@@ -57,6 +57,11 @@ const taskSchema = new mongoose.Schema({
       changedAt: { type: Date, default: Date.now },
     },
   ],
+  repeat: {
+    frequency: { type: String, enum: ['Daily', 'Weekly', 'Monthly', 'Yearly'] },
+    weeklyDays: [String], // for weekly, e.g., ['Monday', 'Wednesday']
+    monthlyDays: [Number], // for monthly, e.g., [1, 15, 28]
+  },
 });
 
 taskSchema.pre("save", function (next) {

@@ -9,6 +9,7 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const Task = require("./models/Task.js");
 const fileRoute = require("./routes/fileRoutes.js");
 const { sendDelayMail } = require("./utils/sendReminder.js");
+
 require("dotenv").config();
 const app = express();
 
@@ -58,6 +59,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", fileRoute);
+
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

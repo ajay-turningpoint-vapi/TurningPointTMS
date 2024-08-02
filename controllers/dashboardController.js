@@ -11,12 +11,27 @@ const calculateStats = (tasks) => {
   const inProgressTasks = tasks.filter(
     (task) => task.status === "In Progress"
   ).length;
+  const now = new Date();
+
+  const overdueTasks = tasks.filter(
+    task => task.dueDate < now && task.status !== "Completed"
+  ).length;
+
+  const onTimeTasks = tasks.filter(
+    task => task.status === "Completed" && task.dueDate >= task.closedAt
+  ).length;
+
+  const delayedTasks = tasks.filter(
+    task => task.status === "Completed" && task.dueDate < task.closedAt
+  ).length;
 
   return {
     totalTasks,
     completedTasks,
     openTasks,
-    inProgressTasks,
+    inProgressTasks,overdueTasks,
+    onTimeTasks,
+    delayedTasks,
     completionRate: totalTasks ? (completedTasks / totalTasks) * 100 : 0,
   };
 };
