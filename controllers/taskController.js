@@ -94,18 +94,13 @@ exports.getTasks = async (req, res) => {
     const emailID = req.user.emailID;
     const userRole = req.user.role;
     const userId = req.user._id;
-    const isDelayededParam = req.query.isDelayeded; // Check if isDelayeded parameter is provided
 
     let tasksQuery = {};
-
-    if (isDelayededParam === "true") {
-      tasksQuery.isDelayeded = true;
-    }
 
     let tasks;
 
     if (userRole === "Admin") {
-      // Admin can see all tasks, optionally filtered by isDelayeded
+      // Admin can see all tasks
       tasks = await Task.aggregate([
         { $match: tasksQuery },
         { $sort: { _id: -1 } },
@@ -113,7 +108,7 @@ exports.getTasks = async (req, res) => {
         { $replaceRoot: { newRoot: "$doc" } }
       ]);
     } else if (userRole === "TeamLeader") {
-      // TeamLeader can see tasks assigned to them and their team, optionally filtered by isDelayeded
+      // TeamLeader can see tasks assigned to them and their team
       const teamMembers = await User.find({ teamLeader: userId }).select("emailID");
       const teamMemberEmailIds = teamMembers.map(member => member.emailID);
 
@@ -129,7 +124,7 @@ exports.getTasks = async (req, res) => {
         { $replaceRoot: { newRoot: "$doc" } }
       ]);
     } else {
-      // Regular user can see tasks assigned to them, optionally filtered by isDelayeded
+      // Regular user can see tasks assigned to them
       tasksQuery.assignTo = emailID;
 
       tasks = await Task.aggregate([
@@ -146,6 +141,122 @@ exports.getTasks = async (req, res) => {
     res.status(500).json({ error: "Server error." });
   }
 };
+
+exports.getOverdueTasks = async (req, res) => {
+  try {
+    const emailID = req.user.emailID;
+    const userRole = req.user.role;
+    const userId = req.user._id;
+
+    const currentDate = new Date();
+
+    let tasksQuery = {
+      dueDate: { $lt: currentDate }, // Tasks with dueDate less than current date
+      status: { $ne: 'Completed' } // Tasks that are not completed
+    };
+
+    let tasks;
+
+    if (userRole === "Admin") {
+      // Admin can see all overdue tasks
+      tasks = await Task.aggregate([
+        { $match: tasksQuery },
+        { $sort: { _id: -1 } },
+        { $group: { _id: "$_id", doc: { $first: "$$ROOT" } } },
+        { $replaceRoot: { newRoot: "$doc" } }
+      ]);
+    } else if (userRole === "TeamLeader") {
+      // TeamLeader can see overdue tasks assigned to them and their team
+      const teamMembers = await User.find({ teamLeader: userId }).select("emailID");
+      const teamMemberEmailIds = teamMembers.map(member => member.emailID);
+
+      tasksQuery.$or = [
+        { assignTo: emailID },
+        { assignTo: { $in: teamMemberEmailIds } }
+      ];
+
+      tasks = await Task.aggregate([
+        { $match: tasksQuery },
+        { $sort: { _id: -1 } },
+        { $group: { _id: "$_id", doc: { $first: "$$ROOT" } } },
+        { $replaceRoot: { newRoot: "$doc" } }
+      ]);
+    } else {
+      // Regular user can see overdue tasks assigned to them
+      tasksQuery.assignTo = emailID;
+
+      tasks = await Task.aggregate([
+        { $match: tasksQuery },
+        { $sort: { _id: -1 } },
+        { $group: { _id: "$_id", doc: { $first: "$$ROOT" } } },
+        { $replaceRoot: { newRoot: "$doc" } }
+      ]);
+    }
+
+    res.json({ message: "Overdue tasks retrieved successfully", tasks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error." });
+  }
+};
+exports.getDelayedTasks = async (req, res) => {
+  try {
+    const emailID = req.user.emailID;
+    const userRole = req.user.role;
+    const userId = req.user._id;
+
+    const currentDate = new Date();
+
+    let tasksQuery = {
+      dueDate: { $lt: currentDate }, // Tasks with dueDate less than current date
+      status: 'Completed' // Tasks that are completed
+    };
+
+    let tasks;
+
+    if (userRole === "Admin") {
+      // Admin can see all delayed tasks
+      tasks = await Task.aggregate([
+        { $match: tasksQuery },
+        { $sort: { _id: -1 } },
+        { $group: { _id: "$_id", doc: { $first: "$$ROOT" } } },
+        { $replaceRoot: { newRoot: "$doc" } }
+      ]);
+    } else if (userRole === "TeamLeader") {
+      // TeamLeader can see delayed tasks assigned to them and their team
+      const teamMembers = await User.find({ teamLeader: userId }).select("emailID");
+      const teamMemberEmailIds = teamMembers.map(member => member.emailID);
+
+      tasksQuery.$or = [
+        { assignTo: emailID },
+        { assignTo: { $in: teamMemberEmailIds } }
+      ];
+
+      tasks = await Task.aggregate([
+        { $match: tasksQuery },
+        { $sort: { _id: -1 } },
+        { $group: { _id: "$_id", doc: { $first: "$$ROOT" } } },
+        { $replaceRoot: { newRoot: "$doc" } }
+      ]);
+    } else {
+      // Regular user can see delayed tasks assigned to them
+      tasksQuery.assignTo = emailID;
+
+      tasks = await Task.aggregate([
+        { $match: tasksQuery },
+        { $sort: { _id: -1 } },
+        { $group: { _id: "$_id", doc: { $first: "$$ROOT" } } },
+        { $replaceRoot: { newRoot: "$doc" } }
+      ]);
+    }
+
+    res.json({ message: "Delayed tasks retrieved successfully", tasks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error." });
+  }
+};
+
 
 exports.getMyTasks = async (req, res) => {
   try {

@@ -12,6 +12,8 @@ router.post(
 );
 router.get("/", auth, taskController.getTasks);
 router.get("/mytasks", auth, taskController.getMyTasks);
+router.get("/overdue-tasks", auth, taskController.getOverdueTasks);
+router.get("/delayed-tasks", auth, taskController.getDelayedTasks);
 router.get("/delegatedtasks", auth, taskController.getDelegatedTasks);
 router.get("/:id", auth, taskController.getTask);
 
