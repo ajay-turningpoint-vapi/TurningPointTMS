@@ -5,6 +5,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/authRoutes.js");
 const taskRoutes = require("./routes/taskRoutes");
 const userRoutes = require("./routes/userRoutes");
+const categoryRoutes = require("./routes/categoryRoutes.js");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const Task = require("./models/Task.js");
 const fileRoute = require("./routes/fileRoutes.js");
@@ -34,6 +35,7 @@ app.get("/api", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/category", categoryRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", fileRoute);
 
